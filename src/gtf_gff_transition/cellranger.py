@@ -73,8 +73,10 @@ class BuildStats:
     genes_written: int
     transcripts_written: int
     exons_written: int
+    cds_written: int
     input_lines: int
     skipped_exons_missing_transcript: int
+    skipped_cds_missing_transcript: int
 
 
 @dataclass
@@ -236,6 +238,26 @@ def _build_gtf_attrs_for_exon(
     exon_id = in_attrs.get("exon_id")
     if exon_id:
         attrs["exon_id"] = exon_id
+    return attrs
+
+
+def _build_gtf_attrs_for_cds(
+    in_attrs: OrderedDict[str, str],
+    transcript: TranscriptMeta,
+    gene: GeneMeta,
+) -> OrderedDict[str, str]:
+    attrs: OrderedDict[str, str] = OrderedDict()
+    attrs["gene_id"] = gene.gene_id
+    attrs["transcript_id"] = transcript.transcript_id
+    attrs["gene_name"] = gene.gene_name
+    attrs["gene_biotype"] = gene.gene_biotype
+    attrs["gene_type"] = gene.gene_biotype
+    attrs["transcript_biotype"] = transcript.transcript_biotype
+    attrs["transcript_type"] = transcript.transcript_biotype
+
+    protein_id = in_attrs.get("protein_id")
+    if protein_id:
+        attrs["protein_id"] = protein_id
     return attrs
 
 
@@ -451,7 +473,9 @@ def build_cellranger_gtf(
     genes_written = 0
     transcripts_written = 0
     exons_written = 0
+    cds_written = 0
     skipped_exons_missing_transcript = 0
+    skipped_cds_missing_transcript = 0
 
     emitted_genes: set[str] = set()
     emitted_transcripts: set[str] = set()
@@ -512,13 +536,34 @@ def build_cellranger_gtf(
                 out_attrs = _build_gtf_attrs_for_exon(attrs, tx_meta, gene_meta)
                 out_handle.write(_render_gtf_line(cols, "exon", out_attrs) + "\n")
                 exons_written += 1
+                continue
+
+            if feature_type.lower() == "cds":
+                tx_key = _pick_parent_transcript_key(attrs)
+                if not tx_key or tx_key not in valid_transcripts:
+                    skipped_cds_missing_transcript += 1
+                    continue
+                tx_meta = transcripts.get(tx_key)
+                if tx_meta is None:
+                    skipped_cds_missing_transcript += 1
+                    continue
+                gene_meta = genes.get(tx_meta.gene_key)
+                if gene_meta is None:
+                    skipped_cds_missing_transcript += 1
+                    continue
+
+                out_attrs = _build_gtf_attrs_for_cds(attrs, tx_meta, gene_meta)
+                out_handle.write(_render_gtf_line(cols, "CDS", out_attrs) + "\n")
+                cds_written += 1
 
     return BuildStats(
         genes_written=genes_written,
         transcripts_written=transcripts_written,
         exons_written=exons_written,
+        cds_written=cds_written,
         input_lines=input_lines,
         skipped_exons_missing_transcript=skipped_exons_missing_transcript,
+        skipped_cds_missing_transcript=skipped_cds_missing_transcript,
     )
 
 
@@ -561,8 +606,10 @@ def main(argv: list[str] | None = None) -> int:
         f"genes={stats.genes_written}",
         f"transcripts={stats.transcripts_written}",
         f"exons={stats.exons_written}",
+        f"cds={stats.cds_written}",
         f"input_lines={stats.input_lines}",
         f"skipped_exons={stats.skipped_exons_missing_transcript}",
+        f"skipped_cds={stats.skipped_cds_missing_transcript}",
     )
     return 0
 

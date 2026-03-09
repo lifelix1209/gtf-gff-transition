@@ -117,14 +117,15 @@ Pipeline:
 3. Normalize feature types:
    - gene-like features (`gene`, `ncRNA_gene`, `pseudogene`, etc.) -> `gene`
    - transcript-like features (`mRNA`, `lnc_RNA`, `miRNA`, `transcript`, etc.) -> `transcript`
-   - structural output keeps `exon`
+   - structural output keeps `exon` and `CDS`
 4. Merge attributes:
    - `gene`: `gene_id`, `gene_name`, `gene_biotype`, `gene_type`
    - `transcript`: `gene_id`, `transcript_id`, `gene_name`, `gene_biotype`, `gene_type`, `transcript_biotype`, `transcript_type`, `transcript_name`
    - `exon`: `gene_id`, `transcript_id`, and optional `exon_number`/`exon_id`
+   - `CDS`: `gene_id`, `transcript_id`, and optional `protein_id`
 5. Enforce hierarchy closure:
    - keep transcripts only if transcript features exist in GFF3 and have exons
-   - keep exons only when their transcript is retained
+   - keep exons/CDS only when their transcript is retained
 6. Optionally filter by biotype:
    - `--cellranger-biotypes-only` uses a default 10x-oriented whitelist
    - `--allowed-biotypes` applies a custom whitelist
@@ -187,8 +188,8 @@ PYTHONPATH=src python -m gtf_gff_transition.validate_cellranger \
 
 Observed dataset-level output stats:
 
-- `astatotilapia_calliptera_cellranger_full.gtf`: gene `36129`, transcript `100860`, exon `1210270`
-- `astatotilapia_calliptera_cellranger_recommended.gtf`: gene `33376`, transcript `98107`, exon `1206332`
+- `astatotilapia_calliptera_cellranger_full.gtf`: total `2472066`, gene `36129`, transcript `100860`, exon `1210270`, CDS `1124804`
+- `astatotilapia_calliptera_cellranger_recommended.gtf`: total `2462622`, gene `33376`, transcript `98107`, exon `1206332`, CDS `1124804`
 
 ## References
 
